@@ -296,6 +296,21 @@ func resourceArmVirtualMachineScaleSet() *schema.Resource {
 							Optional: true,
 						},
 
+						"dns_settings": {
+							Type:     schema.TypeSet,
+							Optional: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"dns_servers": {
+										Type:     schema.TypeList,
+										Required: true,
+										Elem:     &schema.Schema{Type: schema.TypeString},
+									},
+								},
+							},
+						},
+
 						"ip_configuration": {
 							Type:     schema.TypeList,
 							Required: true,
@@ -1379,7 +1394,18 @@ func expandAzureRmVirtualMachineScaleSetNetworkProfile(d *schema.ResourceData) *
 		name := config["name"].(string)
 		primary := config["primary"].(bool)
 		acceleratedNetworking := config["accelerated_networking"].(bool)
+		dns_settings := config["dns_settings"].(*schema.Set).List()[0].(map[string]interface{})
 
+		dnsSettings := compute.VirtualMachineScaleSetNetworkConfigurationDNSSettings{}
+		dns_servers := dns_settings["dns_servers"].([]interface{})
+		if len(dns_servers) > 0 {
+			var dnsServers []string
+			for _, v := range dns_servers {
+				str := v.(string)
+				dnsServers = append(dnsServers, str)
+			}
+			dnsSettings.DNSServers = &dnsServers
+		}
 		ipConfigurationConfigs := config["ip_configuration"].([]interface{})
 		ipConfigurations := make([]compute.VirtualMachineScaleSetIPConfiguration, 0, len(ipConfigurationConfigs))
 		for _, ipConfigConfig := range ipConfigurationConfigs {
@@ -1471,6 +1497,7 @@ func expandAzureRmVirtualMachineScaleSetNetworkProfile(d *schema.ResourceData) *
 				Primary:                     &primary,
 				IPConfigurations:            &ipConfigurations,
 				EnableAcceleratedNetworking: &acceleratedNetworking,
+				DNSSettings:                 &dnsSettings,
 			},
 		}
 
