@@ -292,6 +292,12 @@ func resourceArmVirtualMachineScaleSet() *schema.Resource {
 							Optional: true,
 						},
 
+						"ip_forwarding": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+
 						"network_security_group_id": {
 							Type:     schema.TypeString,
 							Optional: true,
@@ -1135,6 +1141,10 @@ func flattenAzureRmVirtualMachineScaleSetNetworkProfile(profile *compute.Virtual
 			s["accelerated_networking"] = *v
 		}
 
+		if v := netConfig.VirtualMachineScaleSetNetworkConfigurationProperties.EnableIPForwarding; v != nil {
+			s["ip_forwarding"] = *v
+		}
+
 		if v := netConfig.VirtualMachineScaleSetNetworkConfigurationProperties.NetworkSecurityGroup; v != nil {
 			s["network_security_group_id"] = *v.ID
 		}
@@ -1493,6 +1503,7 @@ func expandAzureRmVirtualMachineScaleSetNetworkProfile(d *schema.ResourceData) *
 		name := config["name"].(string)
 		primary := config["primary"].(bool)
 		acceleratedNetworking := config["accelerated_networking"].(bool)
+		ipForwarding := config["ip_forwarding"].(bool)
 		dns_settings := config["dns_settings"].(*schema.Set).List()[0].(map[string]interface{})
 
 		dnsSettings := compute.VirtualMachineScaleSetNetworkConfigurationDNSSettings{}
@@ -1596,6 +1607,7 @@ func expandAzureRmVirtualMachineScaleSetNetworkProfile(d *schema.ResourceData) *
 				Primary:                     &primary,
 				IPConfigurations:            &ipConfigurations,
 				EnableAcceleratedNetworking: &acceleratedNetworking,
+				EnableIPForwarding:          &ipForwarding,
 				DNSSettings:                 &dnsSettings,
 			},
 		}

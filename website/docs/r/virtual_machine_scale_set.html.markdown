@@ -357,6 +357,8 @@ resource "azurerm_virtual_machine_scale_set" "test" {
 * `network_security_group_id` - (Optional) Specifies the identifier for the network security group.
 * `accelerated_networking` - (Optional) Specifies whether to enable accelerated networking or not. Defaults to
 `false`.
+* `ip_forwarding` - (Optional) Specifies whether to enable ip forwarding or not. Defaults to
+`false`.
 
 `ip_configuration` supports the following:
 
