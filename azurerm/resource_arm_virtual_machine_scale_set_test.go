@@ -3,7 +3,6 @@ package azurerm
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"testing"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 )
+
+const scaleSetResourceName = "azurerm_virtual_machine_scale_set.test"
 
 func TestAccAzureRMVirtualMachineScaleSet_basic(t *testing.T) {
 	ri := acctest.RandInt()
@@ -24,13 +25,13 @@ func TestAccAzureRMVirtualMachineScaleSet_basic(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					resource.TestCheckResourceAttrSet("azurerm_virtual_machine_scale_set.test", "vm_hostnames"),
-					resource.TestCheckResourceAttrSet("azurerm_virtual_machine_scale_set.test", "vm_statuses"),
-					resource.TestCheckResourceAttrSet("azurerm_virtual_machine_scale_set.test", "vm_primary_private_ip_addresses"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					resource.TestCheckResourceAttrSet(scaleSetResourceName, "vm_hostnames"),
+					resource.TestCheckResourceAttrSet(scaleSetResourceName, "vm_statuses"),
+					resource.TestCheckResourceAttrSet(scaleSetResourceName, "vm_primary_private_ip_addresses"),
 					// testing default scaleset values
-					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup("azurerm_virtual_machine_scale_set.test", true),
-					testCheckAzureRMVirtualMachineScaleSetIPForwarding("azurerm_virtual_machine_scale_set.test", false),
+					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup(scaleSetResourceName, true),
+					resource.TestCheckResourceAttr(scaleSetResourceName, "ip_forwarding", "false"),
 				),
 			},
 		},
@@ -38,7 +39,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basic(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_basicPublicIP(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
+	resource_name := scaleSetResourceName
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_basicPublicIP(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -59,7 +60,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicPublicIP(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_basicAcceleratedNetworking(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
+	resource_name := scaleSetResourceName
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_basicAcceleratedNetworking(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -79,7 +80,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicAcceleratedNetworking(t *testing.
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_basicIPForwarding(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
+	resource_name := scaleSetResourceName
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_basicIPForwarding(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -91,7 +92,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicIPForwarding(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckAzureRMVirtualMachineScaleSetExists(resource_name),
-					testCheckAzureRMVirtualMachineScaleSetIPForwarding(resource_name, true),
+					resource.TestCheckResourceAttr(scaleSetResourceName, "ip_forwarding", "true"),
 				),
 			},
 		},
@@ -99,7 +100,6 @@ func TestAccAzureRMVirtualMachineScaleSet_basicIPForwarding(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_basicDNSSettings(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_basicDNSSettings(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -110,8 +110,9 @@ func TestAccAzureRMVirtualMachineScaleSet_basicDNSSettings(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resource_name),
-					testCheckAzureRMVirtualMachineScaleSetDNSSettings(resource_name, []string{"8.8.8.8", "8.8.4.4"}),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					resource.TestCheckResourceAttr(scaleSetResourceName, "dns_settings.0.dns_servers.0", "8.8.8.8"),
+					resource.TestCheckResourceAttr(scaleSetResourceName, "dns_settings.0.dns_servers.1", "8.8.4.4"),
 				),
 			},
 		},
@@ -119,7 +120,6 @@ func TestAccAzureRMVirtualMachineScaleSet_basicDNSSettings(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_bootDiagnostic(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_bootDiagnostic(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -130,8 +130,8 @@ func TestAccAzureRMVirtualMachineScaleSet_bootDiagnostic(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resource_name),
-					resource.TestCheckResourceAttr(resource_name, "boot_diagnostics.0.enabled", "true"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					resource.TestCheckResourceAttr(scaleSetResourceName, "boot_diagnostics.0.enabled", "true"),
 				),
 			},
 		},
@@ -139,7 +139,6 @@ func TestAccAzureRMVirtualMachineScaleSet_bootDiagnostic(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_networkSecurityGroup(t *testing.T) {
-	resource_name := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSet_networkSecurityGroup(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -150,7 +149,7 @@ func TestAccAzureRMVirtualMachineScaleSet_networkSecurityGroup(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resource_name),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -168,10 +167,10 @@ func TestAccAzureRMVirtualMachineScaleSet_basicWindows(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 
 					// single placement group should default to true
-					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup("azurerm_virtual_machine_scale_set.test", true),
+					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup(scaleSetResourceName, true),
 				),
 			},
 		},
@@ -189,8 +188,8 @@ func TestAccAzureRMVirtualMachineScaleSet_singlePlacementGroupFalse(t *testing.T
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup("azurerm_virtual_machine_scale_set.test", false),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetSinglePlacementGroup(scaleSetResourceName, false),
 				),
 			},
 		},
@@ -198,7 +197,6 @@ func TestAccAzureRMVirtualMachineScaleSet_singlePlacementGroupFalse(t *testing.T
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_linuxUpdated(t *testing.T) {
-	resourceName := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	location := testLocation()
 	config := testAccAzureRMVirtualMachineScaleSet_linux(ri, location)
@@ -212,13 +210,13 @@ func TestAccAzureRMVirtualMachineScaleSet_linuxUpdated(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -226,7 +224,6 @@ func TestAccAzureRMVirtualMachineScaleSet_linuxUpdated(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_customDataUpdated(t *testing.T) {
-	resourceName := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	location := testLocation()
 	config := testAccAzureRMVirtualMachineScaleSet_linux(ri, location)
@@ -240,13 +237,13 @@ func TestAccAzureRMVirtualMachineScaleSet_customDataUpdated(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -264,7 +261,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicLinux_managedDisk(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -282,7 +279,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicWindows_managedDisk(t *testing.T)
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -301,13 +298,13 @@ func TestAccAzureRMVirtualMachineScaleSet_basicWindows_managedDisk_resize(t *tes
 			{
 				Config: preConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 			{
 				Config: postConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -325,7 +322,7 @@ func TestAccAzureRMVirtualMachineScaleSet_basicLinux_managedDiskNoName(t *testin
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -343,8 +340,8 @@ func TestAccAzureRMVirtualMachineScaleSet_basicLinux_disappears(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetDisappears("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetDisappears(scaleSetResourceName),
 				),
 				ExpectNonEmptyPlan: true,
 			},
@@ -363,7 +360,7 @@ func TestAccAzureRMVirtualMachineScaleSet_planManagedDisk(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -397,7 +394,7 @@ func TestAccAzureRMVirtualMachineScaleSet_customImage(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 					testCheckAzureRMImageExists("azurerm_image.test", true),
 				),
 			},
@@ -416,8 +413,8 @@ func TestAccAzureRMVirtualMachineScaleSet_applicationGateway(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetHasApplicationGateway("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetHasApplicationGateway(scaleSetResourceName),
 				),
 			},
 		},
@@ -435,8 +432,8 @@ func TestAccAzureRMVirtualMachineScaleSet_loadBalancer(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetHasLoadbalancer("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetHasLoadbalancer(scaleSetResourceName),
 				),
 			},
 		},
@@ -454,8 +451,8 @@ func TestAccAzureRMVirtualMachineScaleSet_loadBalancerManagedDataDisks(t *testin
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetHasDataDisks("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetHasDataDisks(scaleSetResourceName),
 				),
 			},
 		},
@@ -473,8 +470,8 @@ func TestAccAzureRMVirtualMachineScaleSet_overprovision(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetOverprovision("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetOverprovision(scaleSetResourceName),
 				),
 			},
 		},
@@ -482,7 +479,6 @@ func TestAccAzureRMVirtualMachineScaleSet_overprovision(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_MSI(t *testing.T) {
-	resourceName := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	config := testAccAzureRMVirtualMachineScaleSetMSITemplate(ri, testLocation())
 	resource.Test(t, resource.TestCase{
@@ -492,7 +488,7 @@ func TestAccAzureRMVirtualMachineScaleSet_MSI(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: config,
-				Check:  resource.TestCheckResourceAttrSet(resourceName, "identity.0.principal_id"),
+				Check:  resource.TestCheckResourceAttrSet(scaleSetResourceName, "identity.0.principal_id"),
 			},
 		},
 	})
@@ -509,8 +505,8 @@ func TestAccAzureRMVirtualMachineScaleSet_extension(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetExtension("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetExtension(scaleSetResourceName),
 				),
 			},
 		},
@@ -518,7 +514,6 @@ func TestAccAzureRMVirtualMachineScaleSet_extension(t *testing.T) {
 }
 
 func TestAccAzureRMVirtualMachineScaleSet_extensionUpdate(t *testing.T) {
-	resourceName := "azurerm_virtual_machine_scale_set.test"
 	ri := acctest.RandInt()
 	location := testLocation()
 	config := testAccAzureRMVirtualMachineScaleSetExtensionTemplate(ri, location)
@@ -531,15 +526,15 @@ func TestAccAzureRMVirtualMachineScaleSet_extensionUpdate(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
-					testCheckAzureRMVirtualMachineScaleSetExtension(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetExtension(scaleSetResourceName),
 				),
 			},
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists(resourceName),
-					testCheckAzureRMVirtualMachineScaleSetExtension(resourceName),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetExtension(scaleSetResourceName),
 				),
 			},
 		},
@@ -557,8 +552,8 @@ func TestAccAzureRMVirtualMachineScaleSet_multipleExtensions(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
-					testCheckAzureRMVirtualMachineScaleSetExtension("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
+					testCheckAzureRMVirtualMachineScaleSetExtension(scaleSetResourceName),
 				),
 			},
 		},
@@ -592,7 +587,7 @@ func TestAccAzureRMVirtualMachineScaleSet_NonStandardCasing(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 			{
@@ -615,7 +610,7 @@ func TestAccAzureRMVirtualMachineScaleSet_multipleNetworkProfiles(t *testing.T) 
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMVirtualMachineScaleSetExists("azurerm_virtual_machine_scale_set.test"),
+					testCheckAzureRMVirtualMachineScaleSetExists(scaleSetResourceName),
 				),
 			},
 		},
@@ -841,57 +836,6 @@ func testCheckAzureRMVirtualMachineScaleSetAcceleratedNetworking(name string, bo
 	}
 }
 
-func testCheckAzureRMVirtualMachineScaleSetIPForwarding(name string, boolean bool) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		resp, err := testGetAzureRMVirtualMachineScaleSet(s, name)
-		if err != nil {
-			return err
-		}
-
-		n := resp.VirtualMachineProfile.NetworkProfile.NetworkInterfaceConfigurations
-		if n == nil || len(*n) == 0 {
-			return fmt.Errorf("Bad: Could not get network interface configurations for scale set %v", name)
-		}
-
-		ipForwarding := *(*n)[0].EnableIPForwarding
-		if ipForwarding != boolean {
-			return fmt.Errorf("Bad: ipForwarding set incorrectly for scale set %v\n Wanted: %+v Received: %+v", name, boolean, ipForwarding)
-		}
-
-		return nil
-	}
-}
-
-func testCheckAzureRMVirtualMachineScaleSetDNSSettings(name string, dns []string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		resp, err := testGetAzureRMVirtualMachineScaleSet(s, name)
-		if err != nil {
-			return err
-		}
-
-		n := resp.VirtualMachineProfile.NetworkProfile.NetworkInterfaceConfigurations
-		if n == nil || len(*n) == 0 {
-			return fmt.Errorf("Bad: Could not get network interface configurations for scale set %v", name)
-		}
-
-		dnsSettings := (*n)[0].DNSSettings
-		if dnsSettings == nil {
-			return fmt.Errorf("Bad: Could not get dns settings for scale set %v", name)
-		}
-
-		dnsServers := dnsSettings.DNSServers
-		if *dnsServers == nil {
-			return fmt.Errorf("Bad: Could not get dns servers list for scale set %v\n Wanted: %+v Received: %+v", name, dns, dnsServers)
-		}
-
-		if !reflect.DeepEqual(dnsServers, dns) {
-			return fmt.Errorf("Bad: dns servers list differs from expected list for scale set %v\n Wanted: %+v Received: %+v", name, dns, dnsServers)
-		}
-
-		return nil
-	}
-}
-
 func testCheckAzureRMVirtualMachineScaleSetOverprovision(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resp, err := testGetAzureRMVirtualMachineScaleSet(s, name)
@@ -1014,18 +958,6 @@ resource "azurerm_subnet" "test" {
     address_prefix = "10.0.2.0/24"
 }
 
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
-}
-
 resource "azurerm_storage_account" "test" {
 	name                     = "accsa%d"
 	resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -1086,7 +1018,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_basicPublicIP(rInt int, location string) string {
@@ -1108,18 +1040,6 @@ resource "azurerm_subnet" "test" {
     resource_group_name = "${azurerm_resource_group.test.name}"
     virtual_network_name = "${azurerm_virtual_network.test.name}"
     address_prefix = "10.0.2.0/24"
-}
-
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
 }
 
 resource "azurerm_storage_account" "test" {
@@ -1188,7 +1108,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_basicAcceleratedNetworking(rInt int, location string) string {
@@ -1210,18 +1130,6 @@ resource "azurerm_subnet" "test" {
     resource_group_name = "${azurerm_resource_group.test.name}"
     virtual_network_name = "${azurerm_virtual_network.test.name}"
     address_prefix = "10.0.2.0/24"
-}
-
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
 }
 
 resource "azurerm_storage_account" "test" {
@@ -1285,7 +1193,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_basicIPForwarding(rInt int, location string) string {
@@ -1481,18 +1389,6 @@ resource "azurerm_subnet" "test" {
     address_prefix = "10.0.2.0/24"
 }
 
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
-}
-
 resource "azurerm_storage_account" "test" {
 	name                     = "accsa%d"
 	resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -1557,7 +1453,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_networkSecurityGroup(rInt int, location string) string {
@@ -1579,18 +1475,6 @@ resource "azurerm_subnet" "test" {
     resource_group_name = "${azurerm_resource_group.test.name}"
     virtual_network_name = "${azurerm_virtual_network.test.name}"
     address_prefix = "10.0.2.0/24"
-}
-
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
 }
 
 resource "azurerm_storage_account" "test" {
@@ -1666,7 +1550,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_basicWindows(rInt int, location string) string {
@@ -1688,18 +1572,6 @@ resource "azurerm_subnet" "test" {
     resource_group_name = "${azurerm_resource_group.test.name}"
     virtual_network_name = "${azurerm_virtual_network.test.name}"
     address_prefix = "10.0.2.0/24"
-}
-
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
 }
 
 resource "azurerm_storage_account" "test" {
@@ -1771,7 +1643,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_singlePlacementGroupFalse(rInt int, location string) string {
@@ -1793,18 +1665,6 @@ resource "azurerm_subnet" "test" {
     resource_group_name = "${azurerm_resource_group.test.name}"
     virtual_network_name = "${azurerm_virtual_network.test.name}"
     address_prefix = "10.0.2.0/24"
-}
-
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%[1]d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
 }
 
 resource "azurerm_storage_account" "test" {
@@ -1877,18 +1737,21 @@ resource "azurerm_resource_group" "test" {
   name     = "acctestrg-%d"
   location = "%s"
 }
+
 resource "azurerm_virtual_network" "test" {
   name                = "acctestvn-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   address_space       = ["10.0.0.0/8"]
 }
+
 resource "azurerm_subnet" "test" {
   name                 = "acctestsn-%d"
   resource_group_name  = "${azurerm_resource_group.test.name}"
   virtual_network_name = "${azurerm_virtual_network.test.name}"
   address_prefix       = "10.0.1.0/24"
 }
+
 resource "azurerm_storage_account" "test" {
   name                     = "accsa%d"
   resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -1896,18 +1759,21 @@ resource "azurerm_storage_account" "test" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
+
 resource "azurerm_storage_container" "test" {
   name                  = "acctestsc-%d"
   resource_group_name   = "${azurerm_resource_group.test.name}"
   storage_account_name  = "${azurerm_storage_account.test.name}"
   container_access_type = "private"
 }
+
 resource "azurerm_public_ip" "test" {
   name                         = "acctestpip-%d"
   resource_group_name          = "${azurerm_resource_group.test.name}"
   location                     = "${azurerm_resource_group.test.location}"
   public_ip_address_allocation = "static"
 }
+
 resource "azurerm_lb" "test" {
   name                = "acctestlb-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
@@ -1917,27 +1783,32 @@ resource "azurerm_lb" "test" {
     public_ip_address_id = "${azurerm_public_ip.test.id}"
   }
 }
+
 resource "azurerm_lb_backend_address_pool" "test" {
   name                = "acctestbap-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   loadbalancer_id     = "${azurerm_lb.test.id}"
 }
+
 resource "azurerm_virtual_machine_scale_set" "test" {
   name                = "acctestvmss-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   upgrade_policy_mode = "Automatic"
+
   sku {
     name     = "Standard_A0"
     tier     = "Standard"
     capacity = "1"
   }
+
   os_profile {
     computer_name_prefix = "prefix"
     admin_username       = "ubuntu"
     admin_password       = "password"
     custom_data          = "custom data!"
   }
+
   os_profile_linux_config {
     disable_password_authentication = true
     ssh_keys {
@@ -1945,6 +1816,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       key_data = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCsTcryUl51Q2VSEHqDRNmceUFo55ZtcIwxl2QITbN1RREti5ml/VTytC0yeBOvnZA4x4CFpdw/lCDPk0yrH9Ei5vVkXmOrExdTlT3qI7YaAzj1tUVlBd4S6LX1F7y6VLActvdHuDDuXZXzCDd/97420jrDfWZqJMlUK/EmCE5ParCeHIRIvmBxcEnGfFIsw8xQZl0HphxWOtJil8qsUWSdMyCiJYYQpMoMliO99X40AUc4/AlsyPyT5ddbKk08YrZ+rKDVHF7o29rh4vi5MmHkVgVQHKiKybWlHq+b71gIAUQk9wrJxD+dqt4igrmDSpIjfjwnd+l5UIn5fJSO5DYV4YT/4hwK7OKmuo7OFHD0WyY5YnkYEMtFgzemnRBdE8ulcT60DQpVgRMXFWHvhyCWy0L6sgj1QWDZlLpvsIvNfHsyhKFMG1frLnMt/nP0+YCcfg+v1JYeCKjeoJxB8DWcRBsjzItY0CGmzP8UYZiYKl/2u+2TgFS5r7NWH11bxoUzjKdaa1NLw+ieA8GlBFfCbfWe6YVB9ggUte4VtYFMZGxOjS2bAiYtfgTKFJv+XqORAwExG6+G2eDxIDyo80/OA9IG7Xv/jwQr7D6KDjDuULFcN/iTxuttoKrHeYz1hf5ZQlBdllwJHYx6fK2g8kha6r2JIQKocvsAXiiONqSfw== hello@world.com"
     }
   }
+
   network_profile {
     name    = "TestNetworkProfile"
     primary = true
@@ -1954,6 +1826,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       load_balancer_backend_address_pool_ids = ["${azurerm_lb_backend_address_pool.test.id}"]
     }
   }
+
   storage_profile_os_disk {
     name           = "osDiskProfile"
     caching        = "ReadWrite"
@@ -1961,6 +1834,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     os_type        = "linux"
     vhd_containers = ["${azurerm_storage_account.test.primary_blob_endpoint}${azurerm_storage_container.test.name}"]
   }
+
   storage_profile_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
@@ -1977,18 +1851,21 @@ resource "azurerm_resource_group" "test" {
   name     = "acctestrg-%d"
   location = "%s"
 }
+
 resource "azurerm_virtual_network" "test" {
   name                = "acctestvn-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   address_space       = ["10.0.0.0/8"]
 }
+
 resource "azurerm_subnet" "test" {
   name                 = "acctestsn-%d"
   resource_group_name  = "${azurerm_resource_group.test.name}"
   virtual_network_name = "${azurerm_virtual_network.test.name}"
   address_prefix       = "10.0.1.0/24"
 }
+
 resource "azurerm_storage_account" "test" {
   name                     = "accsa%d"
   resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -1996,18 +1873,21 @@ resource "azurerm_storage_account" "test" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
+
 resource "azurerm_storage_container" "test" {
   name                  = "acctestsc-%d"
   resource_group_name   = "${azurerm_resource_group.test.name}"
   storage_account_name  = "${azurerm_storage_account.test.name}"
   container_access_type = "private"
 }
+
 resource "azurerm_public_ip" "test" {
   name                         = "acctestpip-%d"
   resource_group_name          = "${azurerm_resource_group.test.name}"
   location                     = "${azurerm_resource_group.test.location}"
   public_ip_address_allocation = "static"
 }
+
 resource "azurerm_lb" "test" {
   name                = "acctestlb-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
@@ -2017,27 +1897,32 @@ resource "azurerm_lb" "test" {
     public_ip_address_id = "${azurerm_public_ip.test.id}"
   }
 }
+
 resource "azurerm_lb_backend_address_pool" "test" {
   name                = "acctestbap-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   loadbalancer_id     = "${azurerm_lb.test.id}"
 }
+
 resource "azurerm_virtual_machine_scale_set" "test" {
   name                = "acctestvmss-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   upgrade_policy_mode = "Automatic"
+
   sku {
     name     = "Standard_A0"
     tier     = "Standard"
     capacity = "1"
   }
+
   os_profile {
     computer_name_prefix = "prefix"
     admin_username       = "ubuntu"
     admin_password       = "password"
     custom_data          = "custom data!"
   }
+
   os_profile_linux_config {
     disable_password_authentication = true
     ssh_keys {
@@ -2045,6 +1930,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       key_data = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCsTcryUl51Q2VSEHqDRNmceUFo55ZtcIwxl2QITbN1RREti5ml/VTytC0yeBOvnZA4x4CFpdw/lCDPk0yrH9Ei5vVkXmOrExdTlT3qI7YaAzj1tUVlBd4S6LX1F7y6VLActvdHuDDuXZXzCDd/97420jrDfWZqJMlUK/EmCE5ParCeHIRIvmBxcEnGfFIsw8xQZl0HphxWOtJil8qsUWSdMyCiJYYQpMoMliO99X40AUc4/AlsyPyT5ddbKk08YrZ+rKDVHF7o29rh4vi5MmHkVgVQHKiKybWlHq+b71gIAUQk9wrJxD+dqt4igrmDSpIjfjwnd+l5UIn5fJSO5DYV4YT/4hwK7OKmuo7OFHD0WyY5YnkYEMtFgzemnRBdE8ulcT60DQpVgRMXFWHvhyCWy0L6sgj1QWDZlLpvsIvNfHsyhKFMG1frLnMt/nP0+YCcfg+v1JYeCKjeoJxB8DWcRBsjzItY0CGmzP8UYZiYKl/2u+2TgFS5r7NWH11bxoUzjKdaa1NLw+ieA8GlBFfCbfWe6YVB9ggUte4VtYFMZGxOjS2bAiYtfgTKFJv+XqORAwExG6+G2eDxIDyo80/OA9IG7Xv/jwQr7D6KDjDuULFcN/iTxuttoKrHeYz1hf5ZQlBdllwJHYx6fK2g8kha6r2JIQKocvsAXiiONqSfw== hello@world.com"
     }
   }
+
   network_profile {
     name    = "TestNetworkProfile"
     primary = true
@@ -2054,6 +1940,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       load_balancer_backend_address_pool_ids = ["${azurerm_lb_backend_address_pool.test.id}"]
     }
   }
+
   storage_profile_os_disk {
     name           = "osDiskProfile"
     caching        = "ReadWrite"
@@ -2061,12 +1948,14 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     os_type        = "linux"
     vhd_containers = ["${azurerm_storage_account.test.primary_blob_endpoint}${azurerm_storage_container.test.name}"]
   }
+
   storage_profile_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
     sku       = "16.04-LTS"
     version   = "latest"
   }
+
   tags {
     ThisIs = "a test"
   }
@@ -2080,18 +1969,21 @@ resource "azurerm_resource_group" "test" {
   name     = "acctestrg-%d"
   location = "%s"
 }
+
 resource "azurerm_virtual_network" "test" {
   name                = "acctestvn-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   address_space       = ["10.0.0.0/8"]
 }
+
 resource "azurerm_subnet" "test" {
   name                 = "acctestsn-%d"
   resource_group_name  = "${azurerm_resource_group.test.name}"
   virtual_network_name = "${azurerm_virtual_network.test.name}"
   address_prefix       = "10.0.1.0/24"
 }
+
 resource "azurerm_storage_account" "test" {
   name                     = "accsa%d"
   resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -2099,18 +1991,21 @@ resource "azurerm_storage_account" "test" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
+
 resource "azurerm_storage_container" "test" {
   name                  = "acctestsc-%d"
   resource_group_name   = "${azurerm_resource_group.test.name}"
   storage_account_name  = "${azurerm_storage_account.test.name}"
   container_access_type = "private"
 }
+
 resource "azurerm_public_ip" "test" {
   name                         = "acctestpip-%d"
   resource_group_name          = "${azurerm_resource_group.test.name}"
   location                     = "${azurerm_resource_group.test.location}"
   public_ip_address_allocation = "static"
 }
+
 resource "azurerm_lb" "test" {
   name                = "acctestlb-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
@@ -2120,27 +2015,32 @@ resource "azurerm_lb" "test" {
     public_ip_address_id = "${azurerm_public_ip.test.id}"
   }
 }
+
 resource "azurerm_lb_backend_address_pool" "test" {
   name                = "acctestbap-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   loadbalancer_id     = "${azurerm_lb.test.id}"
 }
+
 resource "azurerm_virtual_machine_scale_set" "test" {
   name                = "acctestvmss-%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   location            = "${azurerm_resource_group.test.location}"
   upgrade_policy_mode = "Automatic"
+
   sku {
     name     = "Standard_A0"
     tier     = "Standard"
     capacity = "1"
   }
+
   os_profile {
     computer_name_prefix = "prefix"
     admin_username       = "ubuntu"
     admin_password       = "password"
     custom_data          = "updated custom data!"
   }
+
   os_profile_linux_config {
     disable_password_authentication = true
     ssh_keys {
@@ -2148,6 +2048,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       key_data = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCsTcryUl51Q2VSEHqDRNmceUFo55ZtcIwxl2QITbN1RREti5ml/VTytC0yeBOvnZA4x4CFpdw/lCDPk0yrH9Ei5vVkXmOrExdTlT3qI7YaAzj1tUVlBd4S6LX1F7y6VLActvdHuDDuXZXzCDd/97420jrDfWZqJMlUK/EmCE5ParCeHIRIvmBxcEnGfFIsw8xQZl0HphxWOtJil8qsUWSdMyCiJYYQpMoMliO99X40AUc4/AlsyPyT5ddbKk08YrZ+rKDVHF7o29rh4vi5MmHkVgVQHKiKybWlHq+b71gIAUQk9wrJxD+dqt4igrmDSpIjfjwnd+l5UIn5fJSO5DYV4YT/4hwK7OKmuo7OFHD0WyY5YnkYEMtFgzemnRBdE8ulcT60DQpVgRMXFWHvhyCWy0L6sgj1QWDZlLpvsIvNfHsyhKFMG1frLnMt/nP0+YCcfg+v1JYeCKjeoJxB8DWcRBsjzItY0CGmzP8UYZiYKl/2u+2TgFS5r7NWH11bxoUzjKdaa1NLw+ieA8GlBFfCbfWe6YVB9ggUte4VtYFMZGxOjS2bAiYtfgTKFJv+XqORAwExG6+G2eDxIDyo80/OA9IG7Xv/jwQr7D6KDjDuULFcN/iTxuttoKrHeYz1hf5ZQlBdllwJHYx6fK2g8kha6r2JIQKocvsAXiiONqSfw== hello@world.com"
     }
   }
+
   network_profile {
     name    = "TestNetworkProfile"
     primary = true
@@ -2157,6 +2058,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
       load_balancer_backend_address_pool_ids = ["${azurerm_lb_backend_address_pool.test.id}"]
     }
   }
+
   storage_profile_os_disk {
     name           = "osDiskProfile"
     caching        = "ReadWrite"
@@ -2164,6 +2066,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     os_type        = "linux"
     vhd_containers = ["${azurerm_storage_account.test.primary_blob_endpoint}${azurerm_storage_container.test.name}"]
   }
+
   storage_profile_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
@@ -3295,18 +3198,6 @@ resource "azurerm_subnet" "test" {
   address_prefix       = "10.0.2.0/24"
 }
 
-resource "azurerm_network_interface" "test" {
-  name                = "acctni-%d"
-  location            = "${azurerm_resource_group.test.location}"
-  resource_group_name = "${azurerm_resource_group.test.name}"
-
-  ip_configuration {
-    name                          = "testconfiguration1"
-    subnet_id                     = "${azurerm_subnet.test.id}"
-    private_ip_address_allocation = "dynamic"
-  }
-}
-
 resource "azurerm_virtual_machine_scale_set" "test" {
   name                = "acctvmss-%d"
   location            = "${azurerm_resource_group.test.location}"
@@ -3351,7 +3242,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
   }
 }
 
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSetLoadBalancerTemplateManagedDataDisks(rInt int, location string) string {
@@ -3469,18 +3360,6 @@ resource "azurerm_subnet" "test" {
   address_prefix       = "10.0.2.0/24"
 }
 
-resource "azurerm_network_interface" "test" {
-  name                = "acctni-%d"
-  location            = "${azurerm_resource_group.test.location}"
-  resource_group_name = "${azurerm_resource_group.test.name}"
-
-  ip_configuration {
-    name                          = "testconfiguration1"
-    subnet_id                     = "${azurerm_subnet.test.id}"
-    private_ip_address_allocation = "dynamic"
-  }
-}
-
 resource "azurerm_storage_account" "test" {
   name                     = "accsa%d"
   resource_group_name      = "${azurerm_resource_group.test.name}"
@@ -3542,7 +3421,7 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt)
 }
 
 func testAccAzureRMVirtualMachineScaleSet_planManagedDisk(rInt int, location string) string {
@@ -3800,18 +3679,6 @@ resource "azurerm_subnet" "test" {
     address_prefix = "10.0.2.0/24"
 }
 
-resource "azurerm_network_interface" "test" {
-    name = "acctni-%d"
-    location = "${azurerm_resource_group.test.location}"
-    resource_group_name = "${azurerm_resource_group.test.name}"
-
-    ip_configuration {
-    	name = "testconfiguration1"
-    	subnet_id = "${azurerm_subnet.test.id}"
-    	private_ip_address_allocation = "dynamic"
-    }
-}
-
 resource "azurerm_storage_account" "test" {
     name = "accsa%d"
     resource_group_name = "${azurerm_resource_group.test.name}"
@@ -3881,5 +3748,5 @@ resource "azurerm_virtual_machine_scale_set" "test" {
     version   = "latest"
   }
 }
-`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
+`, rInt, location, rInt, rInt, rInt, rInt, rInt, rInt, rInt)
 }

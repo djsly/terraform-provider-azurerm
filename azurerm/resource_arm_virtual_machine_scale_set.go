@@ -1504,17 +1504,24 @@ func expandAzureRmVirtualMachineScaleSetNetworkProfile(d *schema.ResourceData) *
 		primary := config["primary"].(bool)
 		acceleratedNetworking := config["accelerated_networking"].(bool)
 		ipForwarding := config["ip_forwarding"].(bool)
-		dns_settings := config["dns_settings"].(*schema.Set).List()[0].(map[string]interface{})
 
+		dnsSettingsConfigs := config["dns_settings"].(*schema.Set).List()
+		//(*schema.Set).List()[0].(map[string]interface{})
 		dnsSettings := compute.VirtualMachineScaleSetNetworkConfigurationDNSSettings{}
-		dns_servers := dns_settings["dns_servers"].([]interface{})
-		if len(dns_servers) > 0 {
-			var dnsServers []string
-			for _, v := range dns_servers {
-				str := v.(string)
-				dnsServers = append(dnsServers, str)
+		for _, dnsSettingsConfig := range dnsSettingsConfigs {
+			dns_settings := dnsSettingsConfig.(map[string]interface{})
+
+			if v := dns_settings["dns_servers"]; v != nil {
+				dns_servers := dns_settings["dns_servers"].([]interface{})
+				if len(dns_servers) > 0 {
+					var dnsServers []string
+					for _, v := range dns_servers {
+						str := v.(string)
+						dnsServers = append(dnsServers, str)
+					}
+					dnsSettings.DNSServers = &dnsServers
+				}
 			}
-			dnsSettings.DNSServers = &dnsServers
 		}
 		ipConfigurationConfigs := config["ip_configuration"].([]interface{})
 		ipConfigurations := make([]compute.VirtualMachineScaleSetIPConfiguration, 0, len(ipConfigurationConfigs))
