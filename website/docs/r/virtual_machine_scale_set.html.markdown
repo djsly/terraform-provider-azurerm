@@ -457,9 +457,6 @@ resource "azurerm_virtual_machine_scale_set" "test" {
 The following attributes are exported:
 
 * `id` - The virtual machine scale set ID.
-* `vm_hostnames` - List of VM hostname that are part of the scaleset
-* `vm_statuses` - List of VM status that are part of the scaleset
-* `vm_primary_private_ip_addresses` - List of VM private ip address that are part of the scaleset
 
 ## Import
 
