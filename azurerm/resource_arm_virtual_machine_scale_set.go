@@ -791,7 +791,7 @@ func resourceArmVirtualMachineScaleSetRead(d *schema.ResourceData, meta interfac
 		if upgradePolicy := properties.UpgradePolicy; upgradePolicy != nil {
 			d.Set("upgrade_policy_mode", upgradePolicy.Mode)
 		}
-	        d.Set("priority", properties.VirtualMachineProfile.Priority)
+		d.Set("priority", properties.VirtualMachineProfile.Priority)
 		d.Set("overprovision", properties.Overprovision)
 		d.Set("single_placement_group", properties.SinglePlacementGroup)
 
