@@ -14,6 +14,7 @@ type Client struct {
 	WebhooksClient           *containerregistry.WebhooksClient
 	ReplicationsClient       *containerregistry.ReplicationsClient
 	ServicesClient           *containerservice.ContainerServicesClient
+	AgentPoolsClient         *containerservice.AgentPoolsClient
 }
 
 func BuildClient(o *common.ClientOptions) *Client {
@@ -37,6 +38,9 @@ func BuildClient(o *common.ClientOptions) *Client {
 	KubernetesClustersClient := containerservice.NewManagedClustersClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
 	o.ConfigureClient(&KubernetesClustersClient.Client, o.ResourceManagerAuthorizer)
 
+	AgentPoolsClient := containerservice.NewAgentPoolsClientWithBaseURI(o.ResourceManagerEndpoint, o.SubscriptionId)
+	o.ConfigureClient(&AgentPoolsClient.Client, o.ResourceManagerAuthorizer)
+
 	return &Client{
 		KubernetesClustersClient: &KubernetesClustersClient,
 		GroupsClient:             &GroupsClient,
@@ -44,5 +48,6 @@ func BuildClient(o *common.ClientOptions) *Client {
 		WebhooksClient:           &WebhooksClient,
 		ReplicationsClient:       &ReplicationsClient,
 		ServicesClient:           &ServicesClient,
+		AgentPoolsClient:         &AgentPoolsClient,
 	}
 }

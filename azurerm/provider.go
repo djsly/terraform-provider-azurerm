@@ -309,6 +309,7 @@ func Provider() terraform.ResourceProvider {
 		"azurerm_kusto_cluster":                                      resourceArmKustoCluster(),
 		"azurerm_kusto_database":                                     resourceArmKustoDatabase(),
 		"azurerm_kusto_eventhub_data_connection":                     resourceArmKustoEventHubDataConnection(),
+		"azurerm_kubernetes_cluster_agent_pool":                      resourceArmKubernetesClusterAgentPool(),
 		"azurerm_lb_backend_address_pool":                            resourceArmLoadBalancerBackendAddressPool(),
 		"azurerm_lb_nat_pool":                                        resourceArmLoadBalancerNatPool(),
 		"azurerm_lb_nat_rule":                                        resourceArmLoadBalancerNatRule(),

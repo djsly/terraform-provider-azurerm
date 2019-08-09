@@ -107,6 +107,7 @@ func resourceArmKubernetesCluster() *schema.Resource {
 			"agent_pool_profile": {
 				Type:     schema.TypeList,
 				Required: true,
+				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"name": {
@@ -783,15 +784,95 @@ func resourceArmKubernetesClusterUpdate(d *schema.ResourceData, meta interface{}
 		log.Printf("[DEBUG] Updated the Service Principal for Kubernetes Cluster %q (Resource Group %q).", name, resourceGroup)
 	}
 
+	/******************************************/
+	/*
+
+	   <<<<<<< HEAD
+	   	if features.ShouldResourcesBeImported() {
+	   		existing, err := client.Get(ctx, resourceGroup, name)
+	   =======
+	   	existing, err := client.Get(ctx, resourceGroup, name)
+	   	if err != nil {
+	   		if !utils.ResponseWasNotFound(existing.Response) {
+	   			return fmt.Errorf("Error checking for presence of existing Kubernetes Cluster %q (Resource Group %q): %s", name, resourceGroup, err)
+	   		}
+	   	}
+	   	if requireResourcesToBeImported && d.IsNewResource() {
+	   		if existing.ID != nil && *existing.ID != "" {
+	   			return tf.ImportAsExistsError("azurerm_kubernetes_cluster", *existing.ID)
+	   		}
+	   	}
+	*/
+	agentProfiles, err := expandKubernetesClusterAgentPoolProfiles(d)
+	if err != nil {
+		return err
+	}
+	// TODO handle AgentPoolProfiles update through AgentPool client
+	APclient := meta.(*ArmClient).Containers.AgentPoolsClient
+	agentPoolName := *agentProfiles[0].Name
+	resp, err := APclient.Get(ctx, resourceGroup, name, agentPoolName)
+	if err != nil {
+		if utils.ResponseWasNotFound(resp.Response) {
+			log.Printf("[DEBUG] Managed Kubernetes Cluster %q was not found in Resource Group %q - removing from state!", name, resourceGroup)
+			d.SetId("")
+			return nil
+		}
+
+		return fmt.Errorf("Error retrieving Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
+	}
+	// Handle Primary Agent pool Update
+	profile := resp.ManagedClusterAgentPoolProfileProperties
+	//resourceArmKubernetesClusterAgentPoolCreateUpdate
+	profile.Count = agentProfiles[0].Count
+
+	agentProfile := convertKubernetesClusterAgentPoolProfileToKubernetesClusterAgentPoolProfileProperties(agentProfiles[0])
+
+	agentPoolParameters := containerservice.AgentPool{
+		Name:                                     &name,
+		ManagedClusterAgentPoolProfileProperties: &agentProfile,
+	}
+
+	agentPoolFuture, err := APclient.CreateOrUpdate(ctx, resourceGroup, name, agentPoolName, agentPoolParameters)
+	if err != nil {
+		return fmt.Errorf("Error creating/updating Managed Kubernetes Cluster Agent Pool %q (Resource Group %q): %+v", agentPoolName, resourceGroup, err)
+	}
+	if err = agentPoolFuture.WaitForCompletionRef(ctx, client.Client); err != nil {
+		return fmt.Errorf("Error waiting for completion of Managed Kubernetes Cluster Agent Pool %q (Resource Group %q): %+v", agentPoolName, resourceGroup, err)
+	}
+
+	read, err := client.Get(ctx, resourceGroup, name)
+	if err != nil {
+		return fmt.Errorf("Error retrieving Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
+	}
+
+	if read.ID == nil {
+		return fmt.Errorf("Cannot read ID for Managed Kubernetes Cluster %q (Resource Group %q)", name, resourceGroup)
+	}
+
+	err = resourceArmKubernetesClusterRead(d, meta)
+	if err != nil {
+		return fmt.Errorf("Error retrieving Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
+	}
+
+	d.SetId(*read.ID)
+	if features.ShouldResourcesBeImported() {
+		existing, err := client.Get(ctx, resourceGroup, name)
+		if err != nil {
+			if !utils.ResponseWasNotFound(existing.Response) {
+				return fmt.Errorf("Error checking for presence of existing Kubernetes Cluster %q (Resource Group %q): %s", name, resourceGroup, err)
+			}
+		}
+
+		if existing.ID != nil && *existing.ID != "" {
+			return tf.ImportAsExistsError("azurerm_kubernetes_cluster", *existing.ID)
+		}
+	}
+
 	location := azure.NormalizeLocation(d.Get("location").(string))
 	dnsPrefix := d.Get("dns_prefix").(string)
 	kubernetesVersion := d.Get("kubernetes_version").(string)
 
 	linuxProfile := expandKubernetesClusterLinuxProfile(d)
-	agentProfiles, err := expandKubernetesClusterAgentPoolProfiles(d)
-	if err != nil {
-		return err
-	}
 	windowsProfile := expandKubernetesClusterWindowsProfile(d)
 	networkProfile := expandKubernetesClusterNetworkProfile(d)
 	servicePrincipalProfile := expandAzureRmKubernetesClusterServicePrincipal(d)
@@ -840,7 +921,7 @@ func resourceArmKubernetesClusterUpdate(d *schema.ResourceData, meta interface{}
 		return fmt.Errorf("Error waiting for update of Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
 	}
 
-	read, err := client.Get(ctx, resourceGroup, name)
+	read, err = client.Get(ctx, resourceGroup, name)
 	if err != nil {
 		return fmt.Errorf("Error retrieving Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
 	}
@@ -1187,70 +1268,68 @@ func expandKubernetesClusterAgentPoolProfiles(d *schema.ResourceData) ([]contain
 	configs := d.Get("agent_pool_profile").([]interface{})
 
 	profiles := make([]containerservice.ManagedClusterAgentPoolProfile, 0)
-	for config_id := range configs {
-		config := configs[config_id].(map[string]interface{})
+	config := configs[0].(map[string]interface{})
 
-		name := config["name"].(string)
-		poolType := config["type"].(string)
-		count := int32(config["count"].(int))
-		vmSize := config["vm_size"].(string)
-		osDiskSizeGB := int32(config["os_disk_size_gb"].(int))
-		osType := config["os_type"].(string)
+	name := config["name"].(string)
+	poolType := config["type"].(string)
+	count := int32(config["count"].(int))
+	vmSize := config["vm_size"].(string)
+	osDiskSizeGB := int32(config["os_disk_size_gb"].(int))
+	osType := config["os_type"].(string)
 
-		profile := containerservice.ManagedClusterAgentPoolProfile{
-			Name:         utils.String(name),
-			Type:         containerservice.AgentPoolType(poolType),
-			Count:        utils.Int32(count),
-			VMSize:       containerservice.VMSizeTypes(vmSize),
-			OsDiskSizeGB: utils.Int32(osDiskSizeGB),
-			OsType:       containerservice.OSType(osType),
-		}
-
-		if maxPods := int32(config["max_pods"].(int)); maxPods > 0 {
-			profile.MaxPods = utils.Int32(maxPods)
-		}
-
-		vnetSubnetID := config["vnet_subnet_id"].(string)
-		if vnetSubnetID != "" {
-			profile.VnetSubnetID = utils.String(vnetSubnetID)
-		}
-
-		if maxCount := int32(config["max_count"].(int)); maxCount > 0 {
-			profile.MaxCount = utils.Int32(maxCount)
-		}
-
-		if minCount := int32(config["min_count"].(int)); minCount > 0 {
-			profile.MinCount = utils.Int32(minCount)
-		}
-
-		if enableAutoScalingItf := config["enable_auto_scaling"]; enableAutoScalingItf != nil {
-			profile.EnableAutoScaling = utils.Bool(enableAutoScalingItf.(bool))
-
-			// Auto scaling will change the number of nodes, but the original count number should not be sent again.
-			// This avoid the cluster being resized after creation.
-			if *profile.EnableAutoScaling && !d.IsNewResource() {
-				profile.Count = nil
-			}
-		}
-
-		if availavilityZones := utils.ExpandStringSlice(config["availability_zones"].([]interface{})); len(*availavilityZones) > 0 {
-			profile.AvailabilityZones = availavilityZones
-		}
-
-		if *profile.EnableAutoScaling && (profile.MinCount == nil || profile.MaxCount == nil) {
-			return nil, fmt.Errorf("Can't create an AKS cluster with autoscaling enabled but not setting min_count or max_count")
-		}
-
-		if nodeTaints := utils.ExpandStringSlice(config["node_taints"].([]interface{})); len(*nodeTaints) > 0 {
-			profile.NodeTaints = nodeTaints
-		}
-
-		if enableNodePublicIP := config["enable_node_public_ip"]; enableNodePublicIP != nil {
-			profile.EnableNodePublicIP = utils.Bool(enableNodePublicIP.(bool))
-		}
-
-		profiles = append(profiles, profile)
+	profile := containerservice.ManagedClusterAgentPoolProfile{
+		Name:         utils.String(name),
+		Type:         containerservice.AgentPoolType(poolType),
+		Count:        utils.Int32(count),
+		VMSize:       containerservice.VMSizeTypes(vmSize),
+		OsDiskSizeGB: utils.Int32(osDiskSizeGB),
+		OsType:       containerservice.OSType(osType),
 	}
+
+	if maxPods := int32(config["max_pods"].(int)); maxPods > 0 {
+		profile.MaxPods = utils.Int32(maxPods)
+	}
+
+	vnetSubnetID := config["vnet_subnet_id"].(string)
+	if vnetSubnetID != "" {
+		profile.VnetSubnetID = utils.String(vnetSubnetID)
+	}
+
+	if maxCount := int32(config["max_count"].(int)); maxCount > 0 {
+		profile.MaxCount = utils.Int32(maxCount)
+	}
+
+	if minCount := int32(config["min_count"].(int)); minCount > 0 {
+		profile.MinCount = utils.Int32(minCount)
+	}
+
+	if enableAutoScalingItf := config["enable_auto_scaling"]; enableAutoScalingItf != nil {
+		profile.EnableAutoScaling = utils.Bool(enableAutoScalingItf.(bool))
+
+		// Auto scaling will change the number of nodes, but the original count number should not be sent again.
+		// This avoid the cluster being resized after creation.
+		if *profile.EnableAutoScaling && !d.IsNewResource() {
+			profile.Count = nil
+		}
+	}
+
+	if availavilityZones := utils.ExpandStringSlice(config["availability_zones"].([]interface{})); len(*availavilityZones) > 0 {
+		profile.AvailabilityZones = availavilityZones
+	}
+
+	if *profile.EnableAutoScaling && (profile.MinCount == nil || profile.MaxCount == nil) {
+		return nil, fmt.Errorf("Can't create an AKS cluster with autoscaling enabled but not setting min_count or max_count")
+	}
+
+	if nodeTaints := utils.ExpandStringSlice(config["node_taints"].([]interface{})); len(*nodeTaints) > 0 {
+		profile.NodeTaints = nodeTaints
+	}
+
+	if enableNodePublicIP := config["enable_node_public_ip"]; enableNodePublicIP != nil {
+		profile.EnableNodePublicIP = utils.Bool(enableNodePublicIP.(bool))
+	}
+
+	profiles = append(profiles, profile)
 
 	return profiles, nil
 }
@@ -1262,80 +1341,81 @@ func flattenKubernetesClusterAgentPoolProfiles(profiles *[]containerservice.Mana
 
 	agentPoolProfiles := make([]interface{}, 0)
 
-	for _, profile := range *profiles {
-		count := 0
-		if profile.Count != nil {
-			count = int(*profile.Count)
-		}
+	profile := (*profiles)[0]
 
-		enableAutoScaling := false
-		if profile.EnableAutoScaling != nil {
-			enableAutoScaling = *profile.EnableAutoScaling
-		}
+	count := 0
 
-		fqdnVal := ""
-		if fqdn != nil {
-			// temporarily persist the parent FQDN here until `fqdn` is removed from the `agent_pool_profile`
-			fqdnVal = *fqdn
-		}
-
-		maxCount := 0
-		if profile.MaxCount != nil {
-			maxCount = int(*profile.MaxCount)
-		}
-
-		maxPods := 0
-		if profile.MaxPods != nil {
-			maxPods = int(*profile.MaxPods)
-		}
-
-		minCount := 0
-		if profile.MinCount != nil {
-			minCount = int(*profile.MinCount)
-		}
-
-		name := ""
-		if profile.Name != nil {
-			name = *profile.Name
-		}
-
-		osDiskSizeGB := 0
-		if profile.OsDiskSizeGB != nil {
-			osDiskSizeGB = int(*profile.OsDiskSizeGB)
-		}
-
-		subnetId := ""
-		if profile.VnetSubnetID != nil {
-			subnetId = *profile.VnetSubnetID
-		}
-
-		enableNodePublicIP := false
-		if profile.EnableNodePublicIP != nil {
-			enableNodePublicIP = *profile.EnableNodePublicIP
-		}
-
-		agentPoolProfile := map[string]interface{}{
-			"availability_zones":    utils.FlattenStringSlice(profile.AvailabilityZones),
-			"count":                 count,
-			"enable_auto_scaling":   enableAutoScaling,
-			"enable_node_public_ip": enableNodePublicIP,
-			"max_count":             maxCount,
-			"max_pods":              maxPods,
-			"min_count":             minCount,
-			"name":                  name,
-			"node_taints":           utils.FlattenStringSlice(profile.NodeTaints),
-			"os_disk_size_gb":       osDiskSizeGB,
-			"os_type":               string(profile.OsType),
-			"type":                  string(profile.Type),
-			"vm_size":               string(profile.VMSize),
-			"vnet_subnet_id":        subnetId,
-
-			// TODO: remove in 2.0
-			"fqdn": fqdnVal,
-		}
-
-		agentPoolProfiles = append(agentPoolProfiles, agentPoolProfile)
+	if profile.Count != nil {
+		count = int(*profile.Count)
 	}
+
+	enableAutoScaling := false
+	if profile.EnableAutoScaling != nil {
+		enableAutoScaling = *profile.EnableAutoScaling
+	}
+
+	fqdnVal := ""
+	if fqdn != nil {
+		// temporarily persist the parent FQDN here until `fqdn` is removed from the `agent_pool_profile`
+		fqdnVal = *fqdn
+	}
+
+	maxCount := 0
+	if profile.MaxCount != nil {
+		maxCount = int(*profile.MaxCount)
+	}
+
+	maxPods := 0
+	if profile.MaxPods != nil {
+		maxPods = int(*profile.MaxPods)
+	}
+
+	minCount := 0
+	if profile.MinCount != nil {
+		minCount = int(*profile.MinCount)
+	}
+
+	name := ""
+	if profile.Name != nil {
+		name = *profile.Name
+	}
+
+	osDiskSizeGB := 0
+	if profile.OsDiskSizeGB != nil {
+		osDiskSizeGB = int(*profile.OsDiskSizeGB)
+	}
+
+	subnetId := ""
+	if profile.VnetSubnetID != nil {
+		subnetId = *profile.VnetSubnetID
+	}
+
+	enableNodePublicIP := false
+	if profile.EnableNodePublicIP != nil {
+		enableNodePublicIP = *profile.EnableNodePublicIP
+	}
+
+	agentPoolProfile := map[string]interface{}{
+		"availability_zones":    utils.FlattenStringSlice(profile.AvailabilityZones),
+		"count":                 count,
+		"enable_auto_scaling":   enableAutoScaling,
+		"enable_node_public_ip": enableNodePublicIP,
+		"max_count":             maxCount,
+		"max_pods":              maxPods,
+		"min_count":             minCount,
+		"name":                  name,
+		"node_taints":           utils.FlattenStringSlice(profile.NodeTaints),
+		"os_disk_size_gb":       osDiskSizeGB,
+		"os_type":               string(profile.OsType),
+		"type":                  string(profile.Type),
+		"vm_size":               string(profile.VMSize),
+		"vnet_subnet_id":        subnetId,
+
+		// TODO: remove in 2.0
+		"fqdn": fqdnVal,
+	}
+
+	agentPoolProfiles = append(agentPoolProfiles, agentPoolProfile)
 
 	return agentPoolProfiles
 }
