@@ -44,12 +44,7 @@ func resourceArmKubernetesClusterAgentPool() *schema.Resource {
 			"agent_pool_type": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
-				Default:  string(containerservice.AvailabilitySet),
-				ValidateFunc: validation.StringInSlice([]string{
-					string(containerservice.AvailabilitySet),
-					string(containerservice.VirtualMachineScaleSets),
-				}, false),
+				Computed: true,
 			},
 
 			"orchestrator_version": {
@@ -343,7 +338,8 @@ func resourceArmKubernetesClusterAgentPoolDelete(d *schema.ResourceData, meta in
 
 func expandKubernetesClusterAgentPoolProfileProperties(d *schema.ResourceData) (containerservice.ManagedClusterAgentPoolProfileProperties, error) {
 	// TODO Default: AvailabilitySet ??
-	poolType := d.Get("agent_pool_type").(string)
+	poolType := string(containerservice.VirtualMachineScaleSets)
+
 	// TODO Default Linux ???
 	osType := d.Get("os_type").(string)
 	vmSize := d.Get("vm_size").(string)

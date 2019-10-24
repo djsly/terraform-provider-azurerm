@@ -160,7 +160,6 @@ resource "azurerm_kubernetes_cluster_agent_pool" "linux2" {
 	name = azurerm_kubernetes_cluster.test.name
     resource_group_name = azurerm_resource_group.test.name
 
-    agent_pool_type = "VirtualMachineScaleSets"
     os_type = "Linux"
     vm_size = "Standard_DS2_v2"
     node_count = 1
