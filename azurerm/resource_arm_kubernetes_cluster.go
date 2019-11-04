@@ -784,25 +784,6 @@ func resourceArmKubernetesClusterUpdate(d *schema.ResourceData, meta interface{}
 		log.Printf("[DEBUG] Updated the Service Principal for Kubernetes Cluster %q (Resource Group %q).", name, resourceGroup)
 	}
 
-	/******************************************/
-	/*
-
-	   <<<<<<< HEAD
-	   	if features.ShouldResourcesBeImported() {
-	   		existing, err := client.Get(ctx, resourceGroup, name)
-	   =======
-	   	existing, err := client.Get(ctx, resourceGroup, name)
-	   	if err != nil {
-	   		if !utils.ResponseWasNotFound(existing.Response) {
-	   			return fmt.Errorf("Error checking for presence of existing Kubernetes Cluster %q (Resource Group %q): %s", name, resourceGroup, err)
-	   		}
-	   	}
-	   	if requireResourcesToBeImported && d.IsNewResource() {
-	   		if existing.ID != nil && *existing.ID != "" {
-	   			return tf.ImportAsExistsError("azurerm_kubernetes_cluster", *existing.ID)
-	   		}
-	   	}
-	*/
 	agentProfiles, err := expandKubernetesClusterAgentPoolProfiles(d)
 	if err != nil {
 		return err
