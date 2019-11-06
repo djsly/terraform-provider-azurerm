@@ -801,10 +801,11 @@ func resourceArmKubernetesClusterUpdate(d *schema.ResourceData, meta interface{}
 
 		return fmt.Errorf("Error retrieving Managed Kubernetes Cluster %q (Resource Group %q): %+v", name, resourceGroup, err)
 	}
-	// Handle Primary Agent pool Update
-	profile := resp.ManagedClusterAgentPoolProfileProperties
-	//resourceArmKubernetesClusterAgentPoolCreateUpdate
-	profile.Count = agentProfiles[0].Count
+
+	//reset agent pool count if cluster autoscaler is enabled
+	if agentProfiles[0].EnableAutoScaling {
+		agentProfiles[0].Count = resp.ManagedClusterAgentPoolProfileProperties.Count
+	}
 
 	agentProfile := convertKubernetesClusterAgentPoolProfileToKubernetesClusterAgentPoolProfileProperties(agentProfiles[0])
 
