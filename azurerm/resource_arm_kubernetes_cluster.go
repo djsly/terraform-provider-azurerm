@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2019-10-01/containerservice"
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2019-06-01/containerservice"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
@@ -1268,12 +1268,12 @@ func expandKubernetesClusterAgentPoolProfiles(d *schema.ResourceData) ([]contain
 	orchestratorVersion := config["orchestrator_version"].(string)
 
 	profile := containerservice.ManagedClusterAgentPoolProfile{
-		Name:         utils.String(name),
-		Type:         containerservice.AgentPoolType(poolType),
-		Count:        utils.Int32(count),
-		VMSize:       containerservice.VMSizeTypes(vmSize),
-		OsDiskSizeGB: utils.Int32(osDiskSizeGB),
-		OsType:       containerservice.OSType(osType),
+		Name:                utils.String(name),
+		Type:                containerservice.AgentPoolType(poolType),
+		Count:               utils.Int32(count),
+		VMSize:              containerservice.VMSizeTypes(vmSize),
+		OsDiskSizeGB:        utils.Int32(osDiskSizeGB),
+		OsType:              containerservice.OSType(osType),
 		OrchestratorVersion: utils.String(orchestratorVersion),
 	}
 
