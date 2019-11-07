@@ -1405,7 +1405,7 @@ func flattenKubernetesClusterAgentPoolProfiles(profiles *[]containerservice.Mana
 		"os_type":               string(profile.OsType),
 		"type":                  string(profile.Type),
 		"vm_size":               string(profile.VMSize),
-		"orchestrator_version":  string(profile.OrchestratorVersion),
+		"orchestrator_version":  profile.OrchestratorVersion,
 		"vnet_subnet_id":        subnetId,
 
 		// TODO: remove in 2.0
