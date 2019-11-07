@@ -1340,6 +1340,11 @@ func flattenKubernetesClusterAgentPoolProfiles(profiles *[]containerservice.Mana
 		count = int(*profile.Count)
 	}
 
+	orchestratorVersion := ""
+	if profile.OrchestratorVersion != nil {
+		orchestratorVersion = *profile.OrchestratorVersion
+	}
+
 	enableAutoScaling := false
 	if profile.EnableAutoScaling != nil {
 		enableAutoScaling = *profile.EnableAutoScaling
@@ -1400,6 +1405,7 @@ func flattenKubernetesClusterAgentPoolProfiles(profiles *[]containerservice.Mana
 		"os_type":               string(profile.OsType),
 		"type":                  string(profile.Type),
 		"vm_size":               string(profile.VMSize),
+		"orchestrator_version":  string(profile.OrchestratorVersion),
 		"vnet_subnet_id":        subnetId,
 
 		// TODO: remove in 2.0
