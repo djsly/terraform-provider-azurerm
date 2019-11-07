@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2019-06-01/containerservice"
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2019-10-01/containerservice"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
@@ -194,6 +194,13 @@ func resourceArmKubernetesCluster() *schema.Resource {
 							Optional:     true,
 							ForceNew:     true,
 							ValidateFunc: azure.ValidateResourceID,
+						},
+
+						"orchestrator_version": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							Computed:     true,
+							ValidateFunc: validate.NoEmptyStrings,
 						},
 
 						"os_type": {
@@ -1258,6 +1265,7 @@ func expandKubernetesClusterAgentPoolProfiles(d *schema.ResourceData) ([]contain
 	vmSize := config["vm_size"].(string)
 	osDiskSizeGB := int32(config["os_disk_size_gb"].(int))
 	osType := config["os_type"].(string)
+	orchestratorVersion := config["orchestrator_version"].(string)
 
 	profile := containerservice.ManagedClusterAgentPoolProfile{
 		Name:         utils.String(name),
@@ -1266,6 +1274,7 @@ func expandKubernetesClusterAgentPoolProfiles(d *schema.ResourceData) ([]contain
 		VMSize:       containerservice.VMSizeTypes(vmSize),
 		OsDiskSizeGB: utils.Int32(osDiskSizeGB),
 		OsType:       containerservice.OSType(osType),
+		OrchestratorVersion: utils.String(orchestratorVersion),
 	}
 
 	if maxPods := int32(config["max_pods"].(int)); maxPods > 0 {
