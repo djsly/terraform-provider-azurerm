@@ -803,7 +803,7 @@ func resourceArmKubernetesClusterUpdate(d *schema.ResourceData, meta interface{}
 	}
 
 	//reset agent pool count if cluster autoscaler is enabled
-	if agentProfiles[0].EnableAutoScaling {
+	if *agentProfiles[0].EnableAutoScaling {
 		agentProfiles[0].Count = resp.ManagedClusterAgentPoolProfileProperties.Count
 	}
 
